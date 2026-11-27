@@ -1,6 +1,6 @@
 {
   "name": "pi-desktop-blender-bridge",
-  "version": "3.1.4",
+  "version": "3.1.5",
   "private": true,
   "description": "PI-Desktop host adaptation of dsh-blender-plugin 3.1.0-alpha.1 (Blender bridge: session/op/py/see/run/inspect)",
   "type": "commonjs",

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.hawchou1995.pi-desktop-blender-bridge",
   "name": "PI Blender Bridge",
-  "version": "3.1.4",
+  "version": "3.1.5",
   "main": "main.js",
   "description": "Drive Blender from PI-Desktop over a loopback Gateway: six agent tools (blender_session / blender_op / blender_py / blender_see / blender_run / blender_inspect), protocol 12 addon handshake, GUI capture, bounded headless jobs, lease/scope/txn. Host adaptation of dsh-blender-plugin 3.1.0-alpha.1 (pinned commit 6c56147); the 34-family/228-op catalog and the Python kernel are the upstream runtime, not a reimplementation.",
   "author": "hawchou1995",
@@ -569,7 +569,7 @@
       }
     ],
     "skills": [
-      "./skills/blender-modeling/SKILL.md"
+      "skills/blender-modeling/SKILL.md"
     ]
   },
   "engines": {

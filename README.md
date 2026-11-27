@@ -4,7 +4,7 @@ PI-Desktop 侧的 Blender 桥接：把 [dsh-blender-plugin](https://github.com/s
 3.1.0-alpha.1 的**运行时、协议、算子与 skill**原样搬过来，只替换最薄的一层宿主适配。
 
 - 上游固定提交：`6c5614712972a5cbca52b13d4df9193d76e76b0d`（main，2026-11-11，3.1.0-alpha.1）
-- 插件 id：`io.github.hawchou1995.pi-desktop-blender-bridge`，版本 `3.1.4`
+- 插件 id：`io.github.hawchou1995.pi-desktop-blender-bridge`，版本 `3.1.5`
 - 宿主：PI-Desktop 0.23.0（`engines.piDesktop >= 0.23.0`）
 - 本仓库**不 push、不发版、不装进用户日常配置**；产物仅在本地 `dist/`
 
@@ -44,7 +44,7 @@ PI-Desktop 侧的 Blender 桥接：把 [dsh-blender-plugin](https://github.com/s
 
 ## 3. 安装（本地候选）
 
-1. 构建（见第 6 节），得到 `dist/io.github.hawchou1995.pi-desktop-blender-bridge-3.1.4.piplug`。
+1. 构建（见第 6 节），得到 `dist/io.github.hawchou1995.pi-desktop-blender-bridge-3.1.5.piplug`。
 2. PI-Desktop → Plugins → 手动安装该 `.piplug`（或「Load development plugin」指向本目录）。
 3. 授权三项权限：`agent.tool.register`、`agent.prompt.inject`、`ui.panel`。
 4. **配对（只需一次）**：命令面板运行「Blender Bridge: 复制配对码」（或打开诊断面板复制）。这个码是 addon 连接 Gateway 的共享秘密。

@@ -126,7 +126,7 @@ function summary(includePairing) {
   if (includePairing && pairing) pairingInfo.code = pairing.addonToken
   return {
     pluginId: 'io.github.hawchou1995.pi-desktop-blender-bridge',
-    version: '3.1.4',
+    version: '3.1.5',
     upstream: {
       repo: 'sixtysevenlf/dsh-blender-plugin',
       commit: '6c5614712972a5cbca52b13d4df9193d76e76b0d',

@@ -1,4 +1,13 @@
-# 验收记录（VERIFICATION）— 3.1.4（含 3.1.2 / 3.1.3 历史）
+# 验收记录（VERIFICATION）— 3.1.5（含 3.1.2 / 3.1.3 / 3.1.4 历史）
+
+## 3.1.5 增量（MAN015 打包门禁修复：只正规化一条相对路径）
+
+- 日期：2026-11-27（本机）。语义改动只有一处：`manifest.json` → `contributes.skills[0]` 由 `"./skills/blender-modeling/SKILL.md"` 正规化为 `"skills/blender-modeling/SKILL.md"`。平台打包规则 MAN015 要求 `contributes.skills[]` 是**规范化安全相对路径**（不接受 `./` 前缀）；3.1.4 的真实 `pack_plugin` what-if dry-run 报 `blockers=1`（`ruleId: MAN015`），去掉 `./` 后同一 payload 报 `blockers=0`、`findings=[]`。
+- 文件本身未移动：`skills/blender-modeling/SKILL.md`（90,232 B）及其 `references/`、`LICENSE`、`NOTICE.md`、`README.md`、`install.sh` 字节不变；声明路径与包内成员一致。
+- 版本载体：`manifest.json:5`、`package.json:3`、`main.js:129`、`README.md:7`、`README.md:47`（3.1.4 → 3.1.5）。
+- 未改：`skills/**`、`addon/**`（`addon/dsh_blender_bridge-2.0.0.zip` 仍 116,367 B · sha256 `bcc0a7962cce85927687a638b088ba4507ecae74874c5a7a26731debfb07168a`）、`bridge/**`、`vendor/**`、`panel/**`、`patches/**`、`scripts/**`、`main.js` 逻辑。
+- 保留：`dist/…-3.1.1/3.1.2/3.1.3/3.1.4.piplug` 全部原样未覆盖；`dist/SHA256SUMS` 只追加 3.1.5 一行。
+- 门禁实测（devkit `check` / `pack`、官方 i18n 预检、官方 `pack_plugin` 只读 dry-run 的 `blockers`）与 3.1.4 → 3.1.5 的 member 级差分记在 `dist/SHA256SUMS` 与构建检查点（scratch，不含自述哈希，避免自指）。
 
 ## 3.1.4 增量（打包门禁 + diff 脱敏，不重建 addon）
 
