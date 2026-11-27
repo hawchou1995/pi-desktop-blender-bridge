@@ -1,0 +1,7 @@
+{
+  "name": "dsh-blender-runtime-vendored",
+  "private": true,
+  "version": "3.1.0-alpha.1",
+  "type": "module",
+  "license": "BSD-3-Clause"
+}

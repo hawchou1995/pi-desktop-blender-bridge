@@ -1,0 +1,11 @@
+export declare const GATEWAY_SCHEMA_VERSION = 1;
+export declare const ADDON_PROTOCOL_VERSION = 12;
+export declare const ADDON_VERSION = "2.0.0";
+export declare const ADDON_KINDS: readonly ["user-gui", "virtual-gui"];
+export type AddonKind = (typeof ADDON_KINDS)[number];
+export declare const ADDON_WS_PATH = "/addon";
+export declare const HEARTBEAT_MS = 15000;
+export declare const HEARTBEAT_DEAD_MS = 45000;
+export declare const MAX_MESSAGE_BYTES = 16777216;
+export declare const GATEWAY_DEFAULT_PORT = 39877;
+export declare const HANDSHAKE_REQUIRED_FIELDS: readonly ["instanceId", "kind", "version", "protocol", "project", "capabilities"];

@@ -1,0 +1,52 @@
+{
+  "patch": "addon-pairing-token",
+  "version": "3.1.2",
+  "date": "2026-11-27",
+  "upstream": {
+    "repo": "https://github.com/sixtysevenlf/dsh-blender-plugin",
+    "commit": "6c5614712972a5cbca52b13d4df9193d76e76b0d",
+    "addonVersion": "2.0.0",
+    "protocol": 12
+  },
+  "note": "This file records ONLY the source delta applied at build time. vendor/UPSTREAM.lock.json still records the unmodified upstream tree and is never rewritten by the patch.",
+  "files": [
+    {
+      "file": "dsh_blender_bridge/transport.py",
+      "upstreamSha256": "75790931424ef27bef83d0128c0b8e284cce53696d2d4607f2b78af45b4da275",
+      "patchedSha256": "aef2408eef5616a57a9cdd1d71b579dc3c276ad6d48fb7d763b0d74f7645131b",
+      "edits": [
+        "carry caller-supplied upgrade headers",
+        "store the headers, rejecting CR/LF injection",
+        "send the extra headers before the terminating blank line"
+      ]
+    },
+    {
+      "file": "dsh_blender_bridge/config.py",
+      "upstreamSha256": "c6bb49e5c2e94aef5dd327c360fe34b5525c61a9cba6d1fe605e5d8340f71d9c",
+      "patchedSha256": "bfc103135d8a97cadda311816e947cac00da8fc4fb6f625c9c110c66c4644f64",
+      "edits": [
+        "resolve the pairing secret (env -> preference -> empty)"
+      ]
+    },
+    {
+      "file": "dsh_blender_bridge/server.py",
+      "upstreamSha256": "e4d92a4f15c4ecf82df021da95ae1c6b45d42257936cd506fc8a72c7e23da856",
+      "patchedSha256": "9973f2fa94645d6c2ca340113781028d9c4fc82f27fc109aa7770c5ec60c9655",
+      "edits": [
+        "import the pairing helpers next to the port helpers",
+        "send the pairing header on every dial (reconnects included)"
+      ]
+    },
+    {
+      "file": "dsh_blender_bridge/ui/preferences.py",
+      "upstreamSha256": "a7338a68aea02ced526fab6f5d8fe595ee94d93322015deb05bb6919c8aee9c2",
+      "patchedSha256": "909f96c6265edd1fce01a89c974a467cc74de3caa4969e7457977eca1e4aeb80",
+      "edits": [
+        "persisted pairing code field",
+        "show the field in the connection box"
+      ]
+    }
+  ],
+  "stagedFileCount": 74,
+  "diff": "patches/addon-pairing-token.diff"
+}

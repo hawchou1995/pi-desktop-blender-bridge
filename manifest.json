@@ -1,0 +1,578 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.hawchou1995.pi-desktop-blender-bridge",
+  "name": "PI Blender Bridge",
+  "version": "3.1.4",
+  "main": "main.js",
+  "description": "Drive Blender from PI-Desktop over a loopback Gateway: six agent tools (blender_session / blender_op / blender_py / blender_see / blender_run / blender_inspect), protocol 12 addon handshake, GUI capture, bounded headless jobs, lease/scope/txn. Host adaptation of dsh-blender-plugin 3.1.0-alpha.1 (pinned commit 6c56147); the 34-family/228-op catalog and the Python kernel are the upstream runtime, not a reimplementation.",
+  "author": "hawchou1995",
+  "license": "BSD-3-Clause",
+  "repository": "https://github.com/hawchou1995/pi-desktop-blender-bridge",
+  "i18n": {
+    "en": {
+      "name": "PI Blender Bridge",
+      "description": "Six agent tools that drive Blender through a loopback Gateway (session / op / py / see / run / inspect), with headless render jobs and viewport capture.",
+      "safetyNotes": "Local code execution inside Blender (blender_py, blender_run headless) authorised by the tool caller · Loopback-only Gateway with a per-run HTTP token · Addon pairing code required for the /addon upgrade · No telemetry, no runtime downloads, no elevation · Needs Node 22 or newer and Blender 4.2 or newer."
+    },
+    "zh-CN": {
+      "name": "PI Blender 桥接",
+      "description": "通过本机 loopback Gateway 驱动 Blender 的六个 agent 工具（session / op / py / see / run / inspect），含无头渲染作业与视口抓帧。",
+      "safetyNotes": "Blender 内的本地代码执行（blender_py、blender_run headless）由工具调用方授权 · Gateway 只监听 loopback，每次加载生成一次性 HTTP token · /addon 升级需要配对码 · 无遥测、无运行时下载、无提权 · 需要 Node 22 或更高与 Blender 4.2 或更高。"
+    }
+  },
+  "categories": [
+    "developer-tools",
+    "productivity"
+  ],
+  "safetyNotes": [
+    "blender_py and blender_run(kind=headless) execute code inside Blender: they are a local code-execution surface, authorised by the model calling the tool.",
+    "The plugin starts one Gateway child process per load on 127.0.0.1 (default port 39877) and stops it on unload. Every HTTP route requires a per-run token generated at load; anonymous loopback callers are refused.",
+    "The Blender addon dials ws://127.0.0.1:<port>/addon with a pairing secret in the x-dsh-bridge-token header (source delta: patches/addon-pairing-token.mjs). A dialer without the exact code is refused before the WebSocket upgrade; the code never travels in the URL, the logs, or a tool result.",
+    "No telemetry, no runtime downloads, no elevation. Requires a Node >= 22 interpreter (PI-Desktop's own Node or one on PATH) and an installed Blender 4.2+ (tested on Blender 5.3).",
+    "Pairing: generate/copy the code from the command palette or the panel, paste it once into the Blender add-on preference Gateway Pairing Code (or set DSHBB_GATEWAY_TOKEN). Rotating the code requires re-pairing.",
+    "The shipped addon zip is built from the pinned GPL-3.0-or-later source plus the documented pairing delta; installing it in Blender is a user action, this plugin never installs it silently."
+  ],
+  "permissions": [
+    "agent.tool.register",
+    "agent.prompt.inject",
+    "ui.panel"
+  ],
+  "ui": {
+    "panel": "panel/index.html",
+    "width": 560,
+    "height": 520,
+    "title": {
+      "en": "Blender Bridge",
+      "zh-CN": "Blender 桥接"
+    }
+  },
+  "activationEvents": [
+    "onStartup",
+    "onCommand:blender-bridge.open-panel"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "id": "blender-bridge.open-panel",
+        "title": "Blender Bridge: 打开诊断面板",
+        "category": "Blender"
+      },
+      {
+        "id": "blender-bridge.status",
+        "title": "Blender Bridge: 状态",
+        "category": "Blender"
+      },
+      {
+        "id": "blender-bridge.restart-gateway",
+        "title": "Blender Bridge: 重启 Gateway",
+        "category": "Blender"
+      },
+      {
+        "id": "blender-bridge.addon-path",
+        "title": "Blender Bridge: 复制 addon zip 路径",
+        "category": "Blender"
+      },
+      {
+        "id": "blender-bridge.pairing-code",
+        "title": "Blender Bridge: 复制配对码",
+        "category": "Blender"
+      },
+      {
+        "id": "blender-bridge.rotate-pairing",
+        "title": "Blender Bridge: 轮换配对码",
+        "category": "Blender"
+      }
+    ],
+    "settings": [
+      {
+        "key": "gatewayPort",
+        "title": "Gateway 端口（loopback）",
+        "description": "Gateway 只监听 127.0.0.1。默认 39877 与 addon 默认一致；改动后需在 Blender 的 N 面板把 Gateway Port 改成同一个值。",
+        "type": "number",
+        "default": 39877
+      },
+      {
+        "key": "blenderExe",
+        "title": "Blender 可执行文件（可选）",
+        "description": "留空则用 Gateway 的自动探测。/blender_run(kind=headless) 与 GUI 会话都用它启动 Blender。",
+        "type": "string",
+        "default": ""
+      },
+      {
+        "key": "nodePath",
+        "title": "Node 可执行文件（可选）",
+        "description": "Gateway 需要 Node >= 22（上游 engines 要求 >= 24.9）。留空时依次尝试 PI-Desktop 自带 Node 与 PATH 上的 node。",
+        "type": "string",
+        "default": ""
+      },
+      {
+        "key": "workDir",
+        "title": "运行目录（可选）",
+        "description": "作业、日志、帧与 Gateway owner 文件的落盘根目录。留空用插件数据目录下的 rt/。",
+        "type": "string",
+        "default": ""
+      },
+      {
+        "key": "autoStart",
+        "title": "加载时自动启动 Gateway",
+        "description": "关闭后需手动执行命令 “Blender Bridge: 重启 Gateway”。",
+        "type": "boolean",
+        "default": true
+      }
+    ],
+    "agentTools": [
+      {
+        "name": "blender_session",
+        "description": "[v3.1] 会话/归属/权限/事务：list/status/doctor/attach/claim/grant/revoke/grants/pause/resume/mark_read/presence/heartbeat/start/stop/txn。Gateway 由 PI 插件托管。",
+        "risk": "medium",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "list",
+                "status",
+                "doctor",
+                "attach",
+                "claim",
+                "detach",
+                "release",
+                "grant",
+                "revoke",
+                "grants",
+                "pause",
+                "resume",
+                "mark_read",
+                "presence",
+                "heartbeat",
+                "start",
+                "stop",
+                "txn",
+                "help"
+              ]
+            },
+            "session_id": {
+              "type": "string"
+            },
+            "instance_id": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "scopes": {
+              "type": "string"
+            },
+            "target_agent_id": {
+              "type": "string"
+            },
+            "target_dsh_session_id": {
+              "type": "string"
+            },
+            "target_host_id": {
+              "type": "string"
+            },
+            "grant_id": {
+              "type": "string"
+            },
+            "ttl_ms": {
+              "type": "integer"
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "snapshot",
+                "restore",
+                "list",
+                "prune",
+                "mark",
+                "revert",
+                "marks",
+                "drop",
+                "help"
+              ]
+            },
+            "label": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "objects": {
+              "type": "string"
+            },
+            "keep": {
+              "type": "integer"
+            },
+            "into": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "snapshot",
+                "original"
+              ]
+            },
+            "backup": {
+              "type": "boolean"
+            },
+            "force": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        }
+      },
+      {
+        "name": "blender_op",
+        "description": "[v3.1] 34 family / 228 op 的 catalog 算子入口：action=plan op=<op> args={...}（op=catalog 列目录）、loop（参数搜索）、opt、preset。算子实现是随包 Python，不在本适配层重写。会话契约：只读 op（98 个）与 action=help 不需要会话；写算子（含 args.dry_run=true）、loop(target=gui)、opt、preset 都需要 ready 的 GUI 会话；loop target=session 走持久无头 worker。",
+        "risk": "high",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "plan",
+                "loop",
+                "opt",
+                "preset",
+                "help"
+              ]
+            },
+            "op": {
+              "type": "string"
+            },
+            "args": {
+              "type": "string",
+              "description": "算子参数 JSON 对象；dry_run=true 只让算子跳过落盘/写入，仍需 ready 的 GUI 会话"
+            },
+            "path": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "gui",
+                "session"
+              ]
+            },
+            "limit": {
+              "type": "integer"
+            },
+            "note": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "string"
+            },
+            "attach_images": {
+              "type": "boolean"
+            },
+            "session": {
+              "type": "string"
+            },
+            "spec": {
+              "type": "string"
+            },
+            "history": {
+              "type": "integer"
+            },
+            "board": {
+              "type": "integer"
+            },
+            "groups": {
+              "type": "boolean"
+            },
+            "top": {
+              "type": "integer"
+            },
+            "include_variants": {
+              "type": "boolean"
+            },
+            "iterations": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "names": {
+              "type": "string"
+            },
+            "targets": {
+              "type": "string"
+            },
+            "data": {
+              "type": "string"
+            },
+            "overwrite": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        }
+      },
+      {
+        "name": "blender_py",
+        "description": "[v3.1] 在 ready 的 GUI 会话里执行 Python（持久内核 K），可选抓帧；只走 GUI，无 headless 回退。",
+        "risk": "high",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "file": {
+              "type": "string"
+            },
+            "see": {
+              "type": "boolean"
+            },
+            "max_size": {
+              "type": "integer"
+            },
+            "force": {
+              "type": "boolean"
+            },
+            "wait_ms": {
+              "type": "integer"
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "blender_see",
+        "description": "[v3.1] GUI 抓帧：viewpoint=viewport|camera|custom，mode=frame|sequence，固定 aspect/尺寸档；PNG 落盘并返回路径。",
+        "risk": "low",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "viewpoint": {
+              "type": "string",
+              "enum": [
+                "viewport",
+                "camera",
+                "custom"
+              ]
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "frame",
+                "sequence"
+              ]
+            },
+            "camera": {
+              "type": "string"
+            },
+            "aspect": {
+              "type": "string",
+              "enum": [
+                "1:1",
+                "4:3",
+                "16:9"
+              ]
+            },
+            "max_size": {
+              "type": "integer"
+            },
+            "from": {
+              "type": "string"
+            },
+            "look_at": {
+              "type": "string"
+            },
+            "lens": {
+              "type": "number"
+            },
+            "ortho": {
+              "type": "boolean"
+            },
+            "ortho_scale": {
+              "type": "number"
+            },
+            "full": {
+              "type": "boolean"
+            },
+            "area": {
+              "type": "integer"
+            },
+            "shading": {
+              "type": "string",
+              "enum": [
+                "WIREFRAME",
+                "SOLID",
+                "MATERIAL",
+                "RENDERED"
+              ]
+            },
+            "overlays": {
+              "type": "boolean"
+            },
+            "diagnostics": {
+              "type": "boolean"
+            },
+            "seconds": {
+              "type": "number"
+            },
+            "fps": {
+              "type": "number"
+            },
+            "force": {
+              "type": "boolean"
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "blender_run",
+        "description": "[v3.1] 唯一作业入口：submit（kind=render|headless）立即返回 jobId，之后 status/wait/collect/cancel/list/perf；另有 tune。队列有界，wait 上限 600s。",
+        "risk": "high",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "submit",
+                "status",
+                "wait",
+                "collect",
+                "cancel",
+                "list",
+                "perf",
+                "tune",
+                "help"
+              ]
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "render",
+                "headless"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "integer"
+            },
+            "timeout_ms": {
+              "type": "integer"
+            },
+            "tail": {
+              "type": "integer"
+            },
+            "state": {
+              "type": "string"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "file": {
+              "type": "string"
+            },
+            "output": {
+              "type": "string"
+            },
+            "outdir": {
+              "type": "string"
+            },
+            "frames": {
+              "type": "string"
+            },
+            "resolution": {
+              "type": "string"
+            },
+            "samples": {
+              "type": "integer"
+            },
+            "engine": {
+              "type": "string"
+            },
+            "format": {
+              "type": "string"
+            },
+            "camera": {
+              "type": "string"
+            },
+            "script": {
+              "type": "string"
+            },
+            "script_file": {
+              "type": "string"
+            },
+            "preload": {
+              "type": "string"
+            },
+            "factory_startup": {
+              "type": "boolean"
+            },
+            "bootstrap": {
+              "type": "boolean"
+            },
+            "workdir": {
+              "type": "string"
+            },
+            "include_noise": {
+              "type": "boolean"
+            },
+            "out_json": {
+              "type": "string"
+            },
+            "args": {
+              "type": "string"
+            },
+            "env": {
+              "type": "string"
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "status",
+                "analyze",
+                "apply",
+                "revert",
+                "help"
+              ]
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "blender_inspect",
+        "description": "[v3.1] 只读检查：command=help 列 addon 只读命令；command=<name> args={...} 执行。写/下载/内部传输命令返回 wrong_tool。",
+        "risk": "low",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "args": {
+              "type": "string"
+            }
+          },
+          "required": []
+        }
+      }
+    ],
+    "skills": [
+      "./skills/blender-modeling/SKILL.md"
+    ]
+  },
+  "engines": {
+    "piDesktop": ">=0.23.0"
+  }
+}

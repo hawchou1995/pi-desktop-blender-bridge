@@ -1,0 +1,77 @@
+# NOTICE — PI Blender Bridge (candidate)
+
+This package is a **host adaptation**, not a rewrite. It carries upstream source
+and upstream-derived artifacts verbatim and adds a thin PI-Desktop boundary.
+License boundaries are listed per directory; a file is only under the license of
+the directory it lives in.
+
+## Upstream project
+
+- Repository: https://github.com/sixtysevenlf/dsh-blender-plugin
+- Pinned commit: `6c5614712972a5cbca52b13d4df9193d76e76b0d` (main, 2026-11-11)
+- Declared version at that commit: `3.1.0-alpha.1` (Blender addon `2.0.0`, gateway protocol `12`)
+- Exact per-file hashes for everything below: `vendor/UPSTREAM.lock.json`
+
+## BSD-3-Clause (Copyright (c) 2026, sixtyseven67)
+
+| Path | What it is |
+|---|---|
+| `vendor/source/runtime/**` | Upstream gateway/runtime TypeScript (350 files), the host-plugin half; BSD per upstream LICENSE |
+| `vendor/dsh-runtime/**` | `tsc` build of `vendor/source/runtime` (ESM) + the Python op implementations copied verbatim from `runtime/py/**` |
+| `vendor/source/LICENSE.upstream-plugin-BSD-3-Clause.txt` | Upstream BSD text, unmodified |
+
+`vendor/source/package.json` is **not** upstream: it is a two-key vendoring
+marker that gives the subtree `"type": "module"` so `tsc` emits ESM (upstream's
+own package.json declares the same). It is documented inside the file.
+
+## GPL-3.0-or-later (Blender addon)
+
+| Path | What it is |
+|---|---|
+| `vendor/source/extension/**` | The Blender addon source exactly as upstream ships it (SPDX `GPL-3.0-or-later`, see `blender_manifest.toml`) |
+| `vendor/source/extension/LICENSE` | Full GPL-3.0 text (35,147 bytes) |
+| `vendor/source/extension/NOTICE` | Upstream's own notice: renamed and modified from `ahujasid/blender-mcp` (MIT, © 2025 Siddharth Ahuja); the MIT text is reproduced there |
+| `addon/dsh_blender_bridge-2.0.0.zip` | Built from the source above with `blender --command extension build` (Blender 5.3.0), byte-identical on rebuild, sha256 in `addon/SHA256SUMS` |
+
+The addon is distributed as source alongside the binary artifact, which is what
+GPL-3.0 requires for the zip. The adapter never installs it silently: the user
+installs it in Blender.
+
+### Source delta: addon pairing token (GPL-3 §5a notice)
+
+The addon source in `vendor/source/extension/**` is **unmodified upstream**. The
+shipped zip is built from a staged copy with one documented delta, applied at
+build time by `scripts/build-addon.mjs` from `patches/addon-pairing-token.mjs`:
+
+| Modified file (inside the zip) | Change | Date |
+|---|---|---|
+| `transport.py` | `WebSocketClient(extra_headers=…)`; sends caller headers on the upgrade; rejects CR/LF in header names/values | 2026-11-27 |
+| `config.py` | `GATEWAY_TOKEN_HEADER`, `GATEWAY_TOKEN_ENV`, `get_gateway_token()` (env `DSHBB_GATEWAY_TOKEN` → preference `gateway_token` → empty) | 2026-11-27 |
+| `server.py` | dials with `x-dsh-bridge-token` on every (re)connect | 2026-11-27 |
+| `ui/preferences.py` | `gateway_token` preference (PASSWORD subtype) + "Pairing Code" field in the connection box | 2026-11-27 |
+
+Each modified file starts with a `# Modified by PI Blender Bridge 3.1.2 (2026-11-27)`
+line, as GPL-3 §5a asks. The exact per-file before/after hashes are in
+`vendor/PATCHES.lock.json`; the human-readable unified diff is
+`patches/addon-pairing-token.diff`. `vendor/UPSTREAM.lock.json` still records the
+unmodified upstream tree and is not rewritten by this delta.
+
+## MIT (modeling skill)
+
+| Path | What it is |
+|---|---|
+| `skills/blender-modeling/**` | Upstream `skills/blender-modeling` (MIT, 1,384-byte LICENSE + NOTICE.md naming RobLe3/cc-blender-skill and arjun988/blender-skills) |
+| `vendor/source/skills/blender-modeling/**` | The same tree kept under the vendored source for provenance |
+
+## PI-Desktop SDK
+
+No PI-Desktop SDK code is vendored or shipped. The official devkit
+(`@pi-desktop/plugin-devkit`) is used **at build time only** to produce and
+validate the `.piplug`; it is not part of the package and not a runtime
+dependency.
+
+## Trademarks
+
+Blender is a trademark of the Blender Foundation. PI-Desktop is a product of
+vastsa. This candidate is an unaffiliated community adaptation and claims no
+endorsement by either.

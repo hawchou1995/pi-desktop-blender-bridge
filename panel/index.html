@@ -1,0 +1,296 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="pi-plugin-chrome" content="v2" />
+    <title></title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: var(--pi-fg, #1c1c1e);
+        --muted: var(--pi-muted-fg, #6b6b70);
+        --bg: var(--pi-bg, #ffffff);
+        --card: var(--pi-card-bg, #f6f6f8);
+        --line: var(--pi-border, #d9d9de);
+        --ok: #1f9d4c;
+        --warn: #b7791f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 12px 14px calc(12px + var(--pi-plugin-titlebar-height, 0px)) 14px;
+        font: 13px/1.5 var(--pi-font-family, "Segoe UI", system-ui, sans-serif);
+        color: var(--fg);
+        background: var(--bg);
+      }
+      h1 { font-size: 15px; margin: 0 0 2px; }
+      .sub { color: var(--muted); font-size: 12px; margin-bottom: 10px; word-break: break-all; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+      button {
+        font: inherit;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--fg);
+        cursor: pointer;
+      }
+      button:hover { filter: brightness(0.97); }
+      .grid { display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; font-size: 12px; }
+      .grid dt { color: var(--muted); }
+      .grid dd { margin: 0; word-break: break-all; }
+      pre {
+        margin: 10px 0 0;
+        padding: 10px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        max-height: 220px;
+        overflow: auto;
+        font: 11.5px/1.45 "Cascadia Mono", Consolas, monospace;
+        white-space: pre-wrap;
+      }
+      .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; border: 1px solid var(--line); }
+      .pill.ok { color: var(--ok); border-color: var(--ok); }
+      .pill.warn { color: var(--warn); border-color: var(--warn); }
+      .hint { color: var(--muted); font-size: 11.5px; margin: 8px 0 0; }
+      code.code { padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; user-select: all; }
+    </style>
+  </head>
+  <body>
+    <h1><span data-copy="title"></span> <span id="state" class="pill"></span></h1>
+    <div class="sub" id="endpoint"></div>
+
+    <div class="row">
+      <button data-action="status" data-copy="btnRefresh"></button>
+      <button data-action="doctor" data-copy="btnDoctor"></button>
+      <button data-action="start" data-copy="btnStart"></button>
+      <button data-action="restart" data-copy="btnRestart"></button>
+      <button data-action="stop" data-copy="btnStop"></button>
+      <button data-action="log" data-copy="btnLog"></button>
+      <button data-action="addon" data-copy="btnAddon"></button>
+    </div>
+
+    <section id="pairing-box" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:8px">
+      <div style="font-weight:600;margin-bottom:6px" data-copy="pairingTitle"></div>
+      <div class="sub" style="margin:0 0 6px" data-copy="pairingHelp"></div>
+      <div class="row" style="margin-bottom:6px">
+        <code class="code" id="pairing-code"></code>
+        <button data-action="pairing-copy" data-copy="btnPairingCopy"></button>
+        <button data-action="pairing-rotate" data-copy="btnPairingRotate"></button>
+      </div>
+      <div class="hint" data-copy="pairingNote"></div>
+    </section>
+
+    <dl class="grid" id="facts"></dl>
+    <pre id="out"></pre>
+    <div class="hint" data-copy="footNote"></div>
+
+    <script>
+      // Locale-keyed copy table: same keys in both locales, no markup, no
+      // placeholders. Values are applied with textContent.
+      const COPY = {
+        en: {
+          title: 'PI Blender Bridge',
+          stateRunning: 'running',
+          stateStopped: 'stopped',
+          btnRefresh: 'Refresh status',
+          btnDoctor: 'Doctor',
+          btnStart: 'Start Gateway',
+          btnRestart: 'Restart',
+          btnStop: 'Stop',
+          btnLog: 'Log tail',
+          btnAddon: 'addon zip path',
+          pairingTitle: 'Pairing code (Blender addon to Gateway)',
+          pairingHelp: 'Paste this code into Blender: Edit, Preferences, Extensions, DSH Blender Bridge, Gateway Pairing Code. One pairing is enough; reconnects reuse it.',
+          btnPairingCopy: 'Copy code',
+          btnPairingRotate: 'Rotate code',
+          pairingNote: 'The code stays in this plugin data directory and is never written to settings, logs or tool results. DSHBB_GATEWAY_TOKEN overrides it.',
+          footNote: 'The Gateway binds 127.0.0.1 only and mints a per-run HTTP token; anonymous local calls are refused.',
+          labelPlugin: 'plugin',
+          labelUpstream: 'upstream',
+          labelProtocol: 'addon protocol',
+          labelPort: 'port',
+          labelWorkdir: 'work dir',
+          labelInterpreter: 'interpreter',
+          labelTools: 'tools',
+          labelAddon: 'addon zip',
+          labelLog: 'log',
+          labelLastError: 'last error',
+          labelPairingFile: 'pairing file',
+          msgReading: 'Reading status...',
+          msgNoGateway: 'Gateway is not listening on port ',
+          msgRefreshed: 'Status refreshed',
+          msgDoctorRunning: 'Running doctor...',
+          msgCopied: 'Pairing code copied to the clipboard',
+          msgCopyFallback: 'Pairing code (copy it by hand): ',
+          msgRotating: 'Rotating the pairing code and restarting the Gateway...',
+          msgFailed: 'Failed: ',
+          msgStatusFailed: 'Status read failed: ',
+        },
+        'zh-CN': {
+          title: 'PI Blender 桥接',
+          stateRunning: '运行中',
+          stateStopped: '未启动',
+          btnRefresh: '刷新状态',
+          btnDoctor: 'Doctor',
+          btnStart: '启动 Gateway',
+          btnRestart: '重启',
+          btnStop: '停止',
+          btnLog: '日志尾部',
+          btnAddon: 'addon zip 路径',
+          pairingTitle: '配对码（Blender addon 到 Gateway）',
+          pairingHelp: '把这段码填到 Blender：编辑、偏好设置、扩展、DSH Blender Bridge、Gateway Pairing Code。配对一次即可，重连沿用。',
+          btnPairingCopy: '复制配对码',
+          btnPairingRotate: '轮换配对码',
+          pairingNote: '配对码只保存在本插件数据目录，不写入设置、日志或模型返回；环境变量 DSHBB_GATEWAY_TOKEN 可覆盖。',
+          footNote: 'Gateway 只监听 127.0.0.1，并在每次加载时生成一次性 HTTP token；匿名本地调用会被拒绝。',
+          labelPlugin: '插件',
+          labelUpstream: '上游',
+          labelProtocol: 'addon 协议',
+          labelPort: '端口',
+          labelWorkdir: '运行目录',
+          labelInterpreter: '解释器',
+          labelTools: '工具',
+          labelAddon: 'addon zip',
+          labelLog: '日志',
+          labelLastError: '最后一次错误',
+          labelPairingFile: '配对文件',
+          msgReading: '读取状态中...',
+          msgNoGateway: 'Gateway 未监听端口 ',
+          msgRefreshed: '状态已刷新',
+          msgDoctorRunning: 'doctor 运行中...',
+          msgCopied: '配对码已复制到剪贴板',
+          msgCopyFallback: '配对码（请手动复制）：',
+          msgRotating: '正在轮换配对码并重启 Gateway...',
+          msgFailed: '失败：',
+          msgStatusFailed: '状态读取失败：',
+        },
+      }
+
+      const api = window.pluginBridge
+      const out = document.getElementById('out')
+      const state = document.getElementById('state')
+      const endpoint = document.getElementById('endpoint')
+      const facts = document.getElementById('facts')
+      const codeEl = document.getElementById('pairing-code')
+
+      const locale = (navigator.language || 'en').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en'
+      const text = COPY[locale]
+
+      function applyCopy() {
+        for (const node of document.querySelectorAll('[data-copy]')) {
+          const key = node.getAttribute('data-copy')
+          if (text[key]) node.textContent = text[key]
+        }
+        document.title = text.title
+      }
+
+      function print(value) {
+        out.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2)
+      }
+
+      function setFacts(map) {
+        facts.textContent = ''
+        for (const [key, value] of Object.entries(map)) {
+          const dt = document.createElement('dt')
+          dt.textContent = text[key] || key
+          const dd = document.createElement('dd')
+          dd.textContent = value === undefined || value === null || value === '' ? '-' : String(value)
+          facts.append(dt, dd)
+        }
+      }
+
+      async function status() {
+        const info = await api.invoke('status')
+        const gateway = info.gateway || {}
+        state.textContent = gateway.running ? text.stateRunning : text.stateStopped
+        state.className = 'pill ' + (gateway.running ? 'ok' : 'warn')
+        endpoint.textContent = gateway.running
+          ? gateway.endpoint
+          : text.msgNoGateway + String(gateway.port || '?')
+        setFacts({
+          labelPlugin: info.pluginId,
+          labelUpstream: info.upstream.repo + ' @ ' + info.upstream.commit.slice(0, 7) + ' · ' + info.upstream.version,
+          labelProtocol: info.upstream.addonProtocol,
+          labelPort: gateway.port,
+          labelWorkdir: gateway.workDir,
+          labelInterpreter: gateway.interpreter,
+          labelTools: (info.tools || []).join(', '),
+          labelAddon: info.addonZip,
+          labelLog: gateway.logFile,
+          labelLastError: gateway.lastError,
+          labelPairingFile: info.pairing && info.pairing.file,
+        })
+        if (codeEl) codeEl.textContent = (info.pairing && info.pairing.code) || '-'
+        return info
+      }
+
+      async function refreshPairing() {
+        try {
+          const result = await api.invoke('pairing')
+          if (codeEl) codeEl.textContent = result.code || '-'
+        } catch (error) {
+          // The panel shows the reason only when the user asks for it.
+        }
+      }
+
+      document.addEventListener('click', async (event) => {
+        const action = event.target && event.target.dataset ? event.target.dataset.action : ''
+        if (!action) return
+        try {
+          if (action === 'status') {
+            await status()
+            print(text.msgRefreshed)
+            return
+          }
+          if (action === 'doctor') {
+            print(text.msgDoctorRunning)
+            print(await api.invoke('doctor'))
+            await status()
+            return
+          }
+          if (action === 'log') {
+            const result = await api.invoke('log', { tail: 8000 })
+            print(result.text || result)
+            return
+          }
+          if (action === 'addon') {
+            const result = await api.invoke('addon-path')
+            print(result.file || result)
+            return
+          }
+          if (action === 'pairing-copy') {
+            const result = await api.invoke('pairing')
+            if (codeEl) codeEl.textContent = result.code || '-'
+            try {
+              await api.invoke('clipboard.writeText', { text: result.code })
+              print(text.msgCopied)
+            } catch (error) {
+              print(text.msgCopyFallback + String(result.code || ''))
+            }
+            return
+          }
+          if (action === 'pairing-rotate') {
+            print(text.msgRotating)
+            const result = await api.invoke('rotate-pairing')
+            if (codeEl) codeEl.textContent = result.code || '-'
+            print(result)
+            await status()
+            return
+          }
+          print(await api.invoke(action))
+          await status()
+        } catch (error) {
+          print(text.msgFailed + (error && error.message ? error.message : String(error)))
+        }
+      })
+
+      applyCopy()
+      print(text.msgReading)
+      status()
+        .catch((error) => print(text.msgStatusFailed + (error && error.message)))
+        .then(refreshPairing)
+    </script>
+  </body>
+</html>

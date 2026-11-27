@@ -1,0 +1,21 @@
+{
+  "name": "pi-desktop-blender-bridge",
+  "version": "3.1.4",
+  "private": true,
+  "description": "PI-Desktop host adaptation of dsh-blender-plugin 3.1.0-alpha.1 (Blender bridge: session/op/py/see/run/inspect)",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=24.9.0"
+  },
+  "scripts": {
+    "build": "node scripts/build-runtime.mjs",
+    "build:addon": "node scripts/build-addon.mjs",
+    "verify": "node scripts/verify-vendor.mjs",
+    "test": "node tests/run-tests.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "5.9.3"
+  },
+  "license": "BSD-3-Clause"
+}

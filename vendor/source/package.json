@@ -1,0 +1,5 @@
+{
+  "_note": "Vendoring marker, not upstream content. Upstream dsh-blender-plugin is an ESM package (package.json type=module); its runtime/**.ts is compiled as NodeNext ESM. This marker carries that module type into the vendored source subtree so tsc emits ESM and import.meta stays legal. See vendor/UPSTREAM.lock.json for the pinned commit and file hashes.",
+  "private": true,
+  "type": "module"
+}
